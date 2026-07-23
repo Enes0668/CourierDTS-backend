@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>CourierDTS — API Test Paneli</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #efece3;
+    --ink: #1c2a2c;
+    --ink-soft: #556164;
+    --accent: #2b6777;
+    --accent-soft: #dde9eb;
+    --accent-2: #b5622f;
+    --accent-2-soft: #f3e2d6;
+    --ok: #2f7d4f;
+    --ok-soft: #e1efe4;
+    --err: #b3392c;
+    --err-soft: #f5e2df;
+    --line: #ddd6c6;
+    --shadow: 0 1px 2px rgba(28,42,44,.06), 0 8px 24px rgba(28,42,44,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#10181a; --surface:#182224; --surface-2:#1f2b2d; --ink:#eae7df; --ink-soft:#a3b0af;
+      --accent:#74b8c6; --accent-soft:#223a3f; --accent-2:#e39a68; --accent-2-soft:#3a2c22;
+      --ok:#7fd39d; --ok-soft:#1d3327; --err:#e58b7f; --err-soft:#3a231f; --line:#2c3739;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; padding: 0; line-height: 1.5; min-height: 100vh;
+  }
+  .display { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .mono { font-family: "JetBrains Mono", "SF Mono", "Cascadia Code", Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  input, textarea, button {
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 7px; padding: 8px 10px; font-size: 13px; font-family: inherit;
+  }
+  input.mono, textarea.mono { font-family: "JetBrains Mono","SF Mono",Consolas,monospace; }
+  textarea { width: 100%; resize: vertical; min-height: 90px; }
+  input:focus, textarea:focus, button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* --- Gate (giriş ekranı) --- */
+  #gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .gate-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 32px; width: 100%; max-width: 400px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .gate-eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  .gate-title { font-size: 22px; font-weight: 600; margin: 2px 0 0; }
+  .gate-sub { color: var(--ink-soft); font-size: 13.5px; margin: 0; }
+  .gate-field label { font-size: 12.5px; color: var(--ink-soft); display: block; margin-bottom: 4px; }
+  .gate-field input { width: 100%; }
+  #gateSubmit {
+    background: var(--accent); color: white; border: none; font-weight: 600; padding: 10px; cursor: pointer;
+  }
+  #gateSubmit:disabled { opacity: .6; cursor: default; }
+  #gateSubmit:hover:not(:disabled) { filter: brightness(1.08); }
+  #gateError {
+    display: none; font-size: 13px; color: var(--err); background: var(--err-soft);
+    border-radius: 7px; padding: 8px 10px;
+  }
+  #gateError.show { display: block; }
+  .gate-hint { font-size: 12px; color: var(--ink-soft); }
+
+  /* --- Panel (asıl içerik) --- */
+  #panel { display: none; padding: 40px 20px 96px; }
+  .page { max-width: 880px; margin: 0 auto; }
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: 26px; margin: 4px 0 6px; font-weight: 600; }
+  .subtitle { color: var(--ink-soft); font-size: 14px; max-width: 62ch; margin: 0; }
+  #lockBtn {
+    font-size: 12px; padding: 6px 12px; cursor: pointer; color: var(--ink-soft); white-space: nowrap;
+  }
+  #lockBtn:hover { color: var(--ink); }
+
+  .status-row { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; font-size: 12.5px; color: var(--ink-soft); }
+  .status-pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+  .status-pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .status-pill.err { background: var(--err-soft); color: var(--err); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden;
+  }
+  .card-head {
+    background: var(--surface-2); padding: 12px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .method { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 5px; letter-spacing: .02em; }
+  .method.get { background: var(--accent-soft); color: var(--accent); }
+  .method.post { background: var(--accent-2-soft); color: var(--accent-2); }
+  .path { font-weight: 600; font-size: 14px; }
+  .card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .field-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field-row label { font-size: 12.5px; color: var(--ink-soft); }
+
+  button.send {
+    background: var(--accent); color: white; border: none; border-radius: 7px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; align-self: flex-start;
+  }
+  button.send:hover { filter: brightness(1.08); }
+  button.send:active { filter: brightness(0.95); }
+
+  .response {
+    display: none; margin-top: 4px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line);
+  }
+  .response.show { display: block; }
+  .response-head { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 12px; }
+  .response-head.ok { background: var(--ok-soft); color: var(--ok); }
+  .response-head.err { background: var(--err-soft); color: var(--err); }
+  .response pre {
+    margin: 0; padding: 12px; font-size: 12.5px; max-height: 260px; overflow: auto;
+    background: var(--bg); white-space: pre-wrap; word-break: break-word;
+  }
+
+  footer { color: var(--ink-soft); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 18px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ GATE: önce bu görünür ============ -->
+  <div id="gate">
+    <div class="gate-card">
+      <div>
+        <div class="gate-eyebrow">CourierDTS &middot; Backend</div>
+        <h1 class="gate-title display">Erişim Anahtarı</h1>
+        <p class="gate-sub">Devam etmek için paylaşılan <span class="mono">X-Demo-Key</span> değerini gir.</p>
+      </div>
+
+      <div class="gate-field">
+        <label for="gateBaseUrl">Base URL</label>
+        <input id="gateBaseUrl" class="mono" type="text" value="https://courierdts-backend.onrender.com">
+      </div>
+      <div class="gate-field">
+        <label for="gateKey">X-Demo-Key</label>
+        <input id="gateKey" class="mono" type="password" placeholder="anahtarı yapıştır" autocomplete="off">
+      </div>
+
+      <div id="gateError"></div>
+
+      <button id="gateSubmit">Giriş yap</button>
+      <p class="gate-hint">Anahtar doğrulanırken backend'e gerçek bir istek atılır. Render uykuda ise ilk denemede 30-50 saniye sürebilir.</p>
+    </div>
+  </div>
+
+  <!-- ============ PANEL: anahtar doğrulanınca görünür ============ -->
+  <div id="panel">
+    <div class="page">
+
+      <header class="top">
+        <div>
+          <div class="eyebrow">CourierDTS &middot; Backend</div>
+          <h1 class="display">API Test Paneli</h1>
+          <p class="subtitle">Postman'e gerek kalmadan tarayıcıdan doğrudan istek atmak için.</p>
+        </div>
+        <button id="lockBtn">Kilitle / anahtarı değiştir</button>
+      </header>
+
+      <div class="status-row">
+        <span>Bağlı:</span>
+        <span id="connectedUrl" class="mono"></span>
+        <span id="keyStatus" class="status-pill ok">anahtar kabul edildi</span>
+      </div>
+
+      <!-- GET /api/locations -->
+      <div class="card">
+        <div class="card-head"><span class="method get">GET</span><span class="path mono">/api/locations</span></div>
+        <div class="card-body">
+          <button class="send" data-endpoint="locations">Gönder</button>
+          <div class="response" data-response="locations"></div>
+        </div>
+      </div>
+
+      <!-- POST /api/packages -->
+      <div class="card">
+        <div class="card-head"><span class="method post">POST</span><span class="path mono">/api/packages</span></div>
+        <div class="card-body">
+          <textarea class="mono" data-body="createPackage">{
+  "barcode": null,
+  "description": "Acil Kan Örneği",
+  "priority": 10,
+  "pickupLocationId": 1,
+  "dropoffLocationId": 2,
+  "assignedCourierId": 5
+}</textarea>
+          <button class="send" data-endpoint="createPackage">Gönder</button>
+          <div class="response" data-response="createPackage"></div>
+        </div>
+      </div>
+
+      <!-- GET /api/packages/mypackages -->
+      <div class="card">
+        <div class="card-head"><span class="method get">GET</span><span class="path mono">/api/packages/mypackages</span></div>
+        <div class="card-body">
+          <div class="field-row">
+            <label for="courierIdInput">courierId</label>
+            <input id="courierIdInput" class="mono" type="number" value="5" style="width:100px">
+          </div>
+          <button class="send" data-endpoint="myPackages">Gönder</button>
+          <div class="response" data-response="myPackages"></div>
+        </div>
+      </div>
+
+      <!-- POST /api/journeys/start -->
+      <div class="card">
+        <div class="card-head"><span class="method post">POST</span><span class="path mono">/api/journeys/start</span></div>
+        <div class="card-body">
+          <textarea class="mono" data-body="startJourney">{
+  "courierId": 5,
+  "startLocationId": 1,
+  "endLocationId": 2
+}</textarea>
+          <button class="send" data-endpoint="startJourney">Gönder</button>
+          <div class="response" data-response="startJourney"></div>
+        </div>
+      </div>
+
+      <!-- POST /api/packages/syncactions -->
+      <div class="card">
+        <div class="card-head"><span class="method post">POST</span><span class="path mono">/api/packages/syncactions</span></div>
+        <div class="card-body">
+          <textarea class="mono" data-body="syncActions">{
+  "courierId": 5,
+  "journeyId": 1,
+  "actions": [
+    {
+      "packageId": 1,
+      "actionType": "PickedUp",
+      "actionTime": "2026-07-23T08:00:00Z",
+      "notes": "Bodrum kat labdan teslim alındı."
+    }
+  ]
+}</textarea>
+          <button class="send" data-endpoint="syncActions">Gönder</button>
+          <div class="response" data-response="syncActions"></div>
+        </div>
+      </div>
+
+      <!-- POST /api/telemetry/batch -->
+      <div class="card">
+        <div class="card-head"><span class="method post">POST</span><span class="path mono">/api/telemetry/batch</span></div>
+        <div class="card-body">
+          <textarea class="mono" data-body="telemetry">{
+  "event_name": "DELIVERY_ROUTE_UPDATE",
+  "timestamp": "2026-07-23T08:10:05.000Z",
+  "context": {
+    "courier_id": 5,
+    "journey_id": 1
+  },
+  "payload": {
+    "actual_path_segment": [
+      { "lat": 39.92086, "lng": 32.854104, "timestamp": "2026-07-23T08:10:00Z" }
+    ]
+  }
+}</textarea>
+          <button class="send" data-endpoint="telemetry">Gönder</button>
+          <div class="response" data-response="telemetry"></div>
+        </div>
+      </div>
+
+      <footer>
+        Bu dosya statik, hiçbir yere yayınlanmıyor — sadece kendi tarayıcında çalışıyor. Anahtarı tarayıcının <span class="mono">localStorage</span>'ında saklıyor, kimseye göndermiyor.
+      </footer>
+
+    </div>
+  </div>
+
+<script>
+  const gate = document.getElementById('gate');
+  const panel = document.getElementById('panel');
+  const gateBaseUrl = document.getElementById('gateBaseUrl');
+  const gateKey = document.getElementById('gateKey');
+  const gateSubmit = document.getElementById('gateSubmit');
+  const gateError = document.getElementById('gateError');
+  const connectedUrl = document.getElementById('connectedUrl');
+  const keyStatus = document.getElementById('keyStatus');
+  const lockBtn = document.getElementById('lockBtn');
+  const courierIdInput = document.getElementById('courierIdInput');
+
+  let currentBaseUrl = '';
+  let currentKey = '';
+
+  function showGateError(msg) {
+    gateError.textContent = msg;
+    gateError.classList.add('show');
+  }
+  function clearGateError() {
+    gateError.classList.remove('show');
+    gateError.textContent = '';
+  }
+
+  function unlock(baseUrl, key) {
+    currentBaseUrl = baseUrl.replace(/\/+$/, '');
+    currentKey = key;
+    localStorage.setItem('courierdts_baseUrl', currentBaseUrl);
+    localStorage.setItem('courierdts_apiKey', currentKey);
+    connectedUrl.textContent = currentBaseUrl;
+    gate.style.display = 'none';
+    panel.style.display = 'block';
+  }
+
+  function lock() {
+    localStorage.removeItem('courierdts_apiKey');
+    panel.style.display = 'none';
+    gate.style.display = 'flex';
+    gateKey.value = '';
+    gateKey.focus();
+  }
+
+  async function tryUnlock(baseUrl, key) {
+    clearGateError();
+    gateSubmit.disabled = true;
+    const originalText = gateSubmit.textContent;
+    gateSubmit.textContent = 'Kontrol ediliyor...';
+
+    try {
+      const res = await fetch(baseUrl.replace(/\/+$/, '') + '/api/locations', {
+        headers: { 'X-Demo-Key': key }
+      });
+      if (res.status === 401) {
+        showGateError('Anahtar hatalı ya da eksik.');
+      } else if (!res.ok) {
+        showGateError('Sunucu HTTP ' + res.status + ' döndü. Base URL doğru mu?');
+      } else {
+        unlock(baseUrl, key);
+      }
+    } catch (err) {
+      showGateError('Sunucuya ulaşılamadı: ' + err.message);
+    } finally {
+      gateSubmit.disabled = false;
+      gateSubmit.textContent = originalText;
+    }
+  }
+
+  gateSubmit.addEventListener('click', () => tryUnlock(gateBaseUrl.value, gateKey.value));
+  gateKey.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(gateBaseUrl.value, gateKey.value); });
+  lockBtn.addEventListener('click', lock);
+
+  // Daha önce doğrulanmış bir anahtar varsa, tekrar gate'te bekletmeden direkt panele geç.
+  const savedBaseUrl = localStorage.getItem('courierdts_baseUrl');
+  const savedKey = localStorage.getItem('courierdts_apiKey');
+  if (savedBaseUrl) gateBaseUrl.value = savedBaseUrl;
+  if (savedKey) {
+    gateKey.value = savedKey;
+    tryUnlock(savedBaseUrl || gateBaseUrl.value, savedKey);
+  }
+
+  const endpoints = {
+    locations:    { method: 'GET',  path: () => '/api/locations' },
+    createPackage:{ method: 'POST', path: () => '/api/packages' },
+    myPackages:   { method: 'GET',  path: () => '/api/packages/mypackages?courierId=' + encodeURIComponent(courierIdInput.value) },
+    startJourney: { method: 'POST', path: () => '/api/journeys/start' },
+    syncActions:  { method: 'POST', path: () => '/api/packages/syncactions' },
+    telemetry:    { method: 'POST', path: () => '/api/telemetry/batch' }
+  };
+
+  function renderResponse(name, status, ok, bodyText) {
+    const box = document.querySelector(`[data-response="${name}"]`);
+    box.classList.add('show');
+    let pretty = bodyText;
+    try { pretty = JSON.stringify(JSON.parse(bodyText), null, 2); } catch (e) { /* düz metin olabilir */ }
+    box.innerHTML = `
+      <div class="response-head ${ok ? 'ok' : 'err'}">
+        <span>HTTP ${status}</span>
+        <span>${ok ? 'başarılı' : 'hata'}</span>
+      </div>
+      <pre class="mono">${pretty ? pretty.replace(/</g, '&lt;') : '(boş gövde)'}</pre>
+    `;
+  }
+
+  document.querySelectorAll('button.send').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.endpoint;
+      const cfg = endpoints[name];
+      const url = currentBaseUrl + cfg.path();
+
+      const options = {
+        method: cfg.method,
+        headers: { 'X-Demo-Key': currentKey }
+      };
+
+      const bodyField = document.querySelector(`[data-body="${name}"]`);
+      if (bodyField) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = bodyField.value;
+      }
+
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = 'Gönderiliyor...';
+
+      try {
+        const res = await fetch(url, options);
+        const text = await res.text();
+        renderResponse(name, res.status, res.ok, text);
+        if (res.status === 401) {
+          keyStatus.textContent = 'anahtar reddedildi';
+          keyStatus.className = 'status-pill err';
+        }
+      } catch (err) {
+        renderResponse(name, '—', false, 'İstek gönderilemedi: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    });
+  });
+</script>
+</body>
+</html>

@@ -53,6 +53,15 @@ namespace CourierDTS.Controllers
             return StatusCode(201, package);
         }
 
+        // Admin görünümü: tek bir kuryeyle sınırlı değil, tüm paketleri gösterir -
+        // Delivered/Cancelled dahil, kuryenin aktif görev listesinden (mypackages) farklı.
+        [HttpGet("packages")]
+        public async Task<IActionResult> GetAllPackages()
+        {
+            var packages = await _db.Packages.ToListAsync();
+            return Ok(packages);
+        }
+
         [HttpGet("packages/mypackages")]
         public async Task<IActionResult> GetMyPackages([FromQuery] int courierId)
         {
