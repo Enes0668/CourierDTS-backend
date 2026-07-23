@@ -1,0 +1,35 @@
+# Derleme çıktıları
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.pdb
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Loglar (NLog)
+logs/
+*.log
+
+# Yerel sırlar / ortam dosyaları (User Secrets zaten proje dışında tutuluyor,
+# ama biri yanlışlıkla böyle bir dosya oluşturursa yine de commit edilmesin)
+appsettings.*.local.json
+secrets.json
+.env
+*.pfx
+*.pem
+*.key
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# NuGet
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
