@@ -47,6 +47,27 @@ try
 
     app.UseCors("AllowFrontend");
 
+    // GEÇİCİ: Azure AD henüz gerçek değerlerle kurulmadığı için [Authorize] (JWT)
+    // devre dışı bırakıldı, onun yerine basit bir paylaşılan anahtar kontrolü var.
+    // TODO: Baş mühendis Azure AD'yi kurunca bu middleware kaldırılıp
+    // ApiController'daki [Authorize] satırı geri açılmalı.
+    var demoApiKey = builder.Configuration["DemoApiKey"];
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            var providedKey = context.Request.Headers["X-Demo-Key"].FirstOrDefault();
+            if (string.IsNullOrEmpty(demoApiKey) || providedKey != demoApiKey)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsync("Eksik ya da geçersiz X-Demo-Key header'ı.");
+                return;
+            }
+        }
+
+        await next();
+    });
+
     app.UseAuthentication();
     app.UseAuthorization();
 

@@ -8,9 +8,11 @@ using CourierDTS.Models;
 namespace CourierDTS.Controllers
 {
     // Mühendisin isteği: katmanlara/ayrı controller'lara bölmeden, tüm endpoint'ler tek yerde.
+    // TODO: Azure AD gerçek değerlerle kurulunca [Authorize] geri açılmalı
+    // (Program.cs'teki geçici X-Demo-Key middleware'i de kaldırılmalı).
     [ApiController]
     [Route("api")]
-    [Authorize]
+    // [Authorize]
     public class ApiController : ControllerBase
     {
         private readonly AppDbContext _db;
