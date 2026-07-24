@@ -75,6 +75,15 @@ namespace CourierDTS.Data
                 .WithMany()
                 .HasForeignKey(ph => ph.PackageId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // İlkel giriş kontrolü için tek admin kaydı: Name=admin, Password=simplex (hashlenmiş).
+            modelBuilder.Entity<Admin>().HasData(new Admin
+            {
+                Id = 1,
+                Name = "admin",
+                Phone = string.Empty,
+                PasswordHash = "100000./YV4z10YUt6MWaUGPjWgIA==.5Ee9u4gYbUfz0F6+HvABCrh90mKDY8awIRsX3taIIAE="
+            });
         }
     }
 }

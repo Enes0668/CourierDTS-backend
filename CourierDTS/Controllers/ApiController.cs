@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CourierDTS.Auth;
 using CourierDTS.Data;
 using CourierDTS.Dtos;
 using CourierDTS.Models;
@@ -22,6 +23,21 @@ namespace CourierDTS.Controllers
         {
             _db = db;
             _logger = logger;
+        }
+
+        // İlkel giriş kontrolü - gerçek auth (Azure AD) gelince kaldırılacak.
+        [HttpPost("admin/login")]
+        public async Task<IActionResult> AdminLogin(AdminLoginRequest request)
+        {
+            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Name == request.Name);
+            if (admin == null || !PasswordHasher.Verify(request.Password, admin.PasswordHash))
+            {
+                _logger.LogWarning("Admin login failed for name {Name}", request.Name);
+                return Unauthorized();
+            }
+
+            _logger.LogInformation("Admin {Name} logged in", admin.Name);
+            return Ok(new { adminId = admin.Id, name = admin.Name });
         }
 
         [HttpGet("locations")]
