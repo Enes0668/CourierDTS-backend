@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
+using CourierDTS.Auth;
 using CourierDTS.Data;
 using NLog;
 using NLog.Web;
@@ -48,19 +49,25 @@ try
     app.UseCors("AllowFrontend");
 
     // GEÇİCİ: Azure AD henüz gerçek değerlerle kurulmadığı için [Authorize] (JWT)
-    // devre dışı bırakıldı, onun yerine basit bir paylaşılan anahtar kontrolü var.
+    // devre dışı bırakıldı, onun yerine ilkel bir oturum tokeni kontrolü var.
     // TODO: Baş mühendis Azure AD'yi kurunca bu middleware kaldırılıp
     // ApiController'daki [Authorize] satırı geri açılmalı.
-    var demoApiKey = builder.Configuration["DemoApiKey"];
     app.Use(async (context, next) =>
     {
-        if (context.Request.Path.StartsWithSegments("/api"))
+        var path = context.Request.Path;
+
+        // Giriş endpoint'i istisna - token almadan önce buraya erişebilmek gerekiyor.
+        if (path.StartsWithSegments("/api") && !path.StartsWithSegments("/api/admin/login"))
         {
-            var providedKey = context.Request.Headers["X-Demo-Key"].FirstOrDefault();
-            if (string.IsNullOrEmpty(demoApiKey) || providedKey != demoApiKey)
+            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+            var token = authHeader != null && authHeader.StartsWith("Bearer ")
+                ? authHeader["Bearer ".Length..]
+                : null;
+
+            if (!SessionStore.IsValid(token))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsync("Eksik ya da geçersiz X-Demo-Key header'ı.");
+                await context.Response.WriteAsync("Giriş yapmanız gerekiyor.");
                 return;
             }
         }

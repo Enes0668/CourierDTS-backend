@@ -36,8 +36,10 @@ namespace CourierDTS.Controllers
                 return Unauthorized();
             }
 
+            var token = SessionStore.CreateSession(admin.Id);
+
             _logger.LogInformation("Admin {Name} logged in", admin.Name);
-            return Ok(new { adminId = admin.Id, name = admin.Name });
+            return Ok(new { adminId = admin.Id, name = admin.Name, token });
         }
 
         [HttpGet("locations")]
