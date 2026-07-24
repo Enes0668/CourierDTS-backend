@@ -7,18 +7,23 @@ namespace CourierDTS.Auth
     // tüm oturumlar sıfırlanır, kullanıcı tekrar giriş yapmak zorunda kalır.
     public static class SessionStore
     {
-        private static readonly ConcurrentDictionary<string, int> _tokenToAdminId = new();
+        public record Session(string Role, int UserId);
 
-        public static string CreateSession(int adminId)
+        private static readonly ConcurrentDictionary<string, Session> _sessions = new();
+
+        public static string CreateSession(string role, int userId)
         {
             var token = Guid.NewGuid().ToString();
-            _tokenToAdminId[token] = adminId;
+            _sessions[token] = new Session(role, userId);
             return token;
         }
 
-        public static bool IsValid(string? token)
+        public static bool IsValidForRole(string? token, string role)
         {
-            return token != null && _tokenToAdminId.ContainsKey(token);
+            if (token == null)
+                return false;
+
+            return _sessions.TryGetValue(token, out var session) && session.Role == role;
         }
     }
 }

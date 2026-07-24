@@ -10,6 +10,11 @@ namespace CourierDTS.Models
         public char Sex { get; set; }
         public DateOnly DateOfBirth { get; set; }
         public string Phone { get; set; } = string.Empty;
+
+        // İlkel giriş kontrolü için - düz metin değil, hash olarak saklanıyor.
+        // Gerçek auth (Azure AD/cihaz bazlı kimlik) gelince kaldırılacak.
+        public string PasswordHash { get; set; } = string.Empty;
+
         // İstihdam durumu değil - kuryenin şu an vardiyada/online olup olmadığı.
         // Gün içinde sık değişir (uygulamayı açtığında/kapattığında). Not: şu an
         // bunu true/false yapan bir endpoint yok, bu da ayrıca eklenmesi gereken bir şey.

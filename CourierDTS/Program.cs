@@ -49,32 +49,36 @@ try
     app.UseCors("AllowFrontend");
 
     // GEÇİCİ: Azure AD henüz gerçek değerlerle kurulmadığı için [Authorize] (JWT)
-    // devre dışı bırakıldı, onun yerine ilkel bir oturum tokeni kontrolü var.
+    // devre dışı bırakıldı, onun yerine ilkel, rol bazlı bir oturum tokeni kontrolü var.
     // TODO: Baş mühendis Azure AD'yi kurunca bu middleware kaldırılıp
     // ApiController'daki [Authorize] satırı geri açılmalı.
-    //
-    // Sadece ADMIN paneline özel endpoint'ler token istiyor (kurye yönetimi,
-    // paket oluşturma/listeleme). Kurye mobil uygulaması ve simulator-bot'un
-    // henüz kendi bir girişi/şifresi yok - bu yüzden journeys/start,
-    // syncactions, telemetry/batch, mypackages şimdilik açık bırakıldı.
-    // Kurye/bot tarafı için ayrı bir kimlik doğrulama gerekiyorsa, bu ayrıca ele alınmalı.
     app.Use(async (context, next) =>
     {
         var path = context.Request.Path.Value ?? string.Empty;
         var method = context.Request.Method;
 
-        var isAdminOnlyEndpoint =
+        // Admin paneline özel: kurye yönetimi, paket oluşturma/listeleme.
+        var requiresAdmin =
             path == "/api/couriers" ||
             (path == "/api/packages" && (method == "GET" || method == "POST"));
 
-        if (isAdminOnlyEndpoint)
+        // Kurye mobil uygulamasına/simulator-bot'a özel.
+        var requiresCourier =
+            path == "/api/packages/mypackages" ||
+            path == "/api/packages/syncactions" ||
+            path == "/api/journeys/start" ||
+            path == "/api/telemetry/batch";
+
+        if (requiresAdmin || requiresCourier)
         {
             var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
             var token = authHeader != null && authHeader.StartsWith("Bearer ")
                 ? authHeader["Bearer ".Length..]
                 : null;
 
-            if (!SessionStore.IsValid(token))
+            var requiredRole = requiresAdmin ? "admin" : "courier";
+
+            if (!SessionStore.IsValidForRole(token, requiredRole))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await context.Response.WriteAsync("Giriş yapmanız gerekiyor.");

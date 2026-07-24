@@ -36,10 +36,27 @@ namespace CourierDTS.Controllers
                 return Unauthorized();
             }
 
-            var token = SessionStore.CreateSession(admin.Id);
+            var token = SessionStore.CreateSession("admin", admin.Id);
 
             _logger.LogInformation("Admin {Name} logged in", admin.Name);
             return Ok(new { adminId = admin.Id, name = admin.Name, token });
+        }
+
+        // İlkel giriş kontrolü - gerçek auth (Azure AD/cihaz bazlı) gelince kaldırılacak.
+        [HttpPost("courier/login")]
+        public async Task<IActionResult> CourierLogin(CourierLoginRequest request)
+        {
+            var courier = await _db.Couriers.FirstOrDefaultAsync(c => c.Name == request.Name);
+            if (courier == null || !PasswordHasher.Verify(request.Password, courier.PasswordHash))
+            {
+                _logger.LogWarning("Courier login failed for name {Name}", request.Name);
+                return Unauthorized();
+            }
+
+            var token = SessionStore.CreateSession("courier", courier.Id);
+
+            _logger.LogInformation("Courier {Name} logged in", courier.Name);
+            return Ok(new { courierId = courier.Id, name = courier.Name, token });
         }
 
         [HttpGet("locations")]
@@ -50,10 +67,26 @@ namespace CourierDTS.Controllers
         }
 
         // Admin görünümü: sistemdeki tüm kuryeleri (boşta olanlar dahil) listeler.
+        // PasswordHash dışarı hiç verilmiyor (hash olsa bile gereksiz sızıntı).
         [HttpGet("couriers")]
         public async Task<IActionResult> GetCouriers()
         {
-            var couriers = await _db.Couriers.ToListAsync();
+            var couriers = await _db.Couriers
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.Surname,
+                    c.Sex,
+                    c.DateOfBirth,
+                    c.Phone,
+                    c.IsActive,
+                    c.LastLat,
+                    c.LastLng,
+                    c.ActiveVehicleId
+                })
+                .ToListAsync();
+
             return Ok(couriers);
         }
 
@@ -68,7 +101,8 @@ namespace CourierDTS.Controllers
                 DateOfBirth = request.DateOfBirth,
                 Phone = request.Phone,
                 ActiveVehicleId = request.ActiveVehicleId,
-                IsActive = false
+                IsActive = false,
+                PasswordHash = PasswordHasher.Hash(request.Password)
             };
 
             _db.Couriers.Add(courier);
@@ -76,7 +110,17 @@ namespace CourierDTS.Controllers
 
             _logger.LogInformation("Courier {CourierId} created ({Name} {Surname})", courier.Id, courier.Name, courier.Surname);
 
-            return StatusCode(201, courier);
+            return StatusCode(201, new
+            {
+                courier.Id,
+                courier.Name,
+                courier.Surname,
+                courier.Sex,
+                courier.DateOfBirth,
+                courier.Phone,
+                courier.IsActive,
+                courier.ActiveVehicleId
+            });
         }
 
         [HttpPost("packages")]
