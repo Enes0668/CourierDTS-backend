@@ -49,6 +49,36 @@ namespace CourierDTS.Controllers
             return Ok(locations);
         }
 
+        // Admin görünümü: sistemdeki tüm kuryeleri (boşta olanlar dahil) listeler.
+        [HttpGet("couriers")]
+        public async Task<IActionResult> GetCouriers()
+        {
+            var couriers = await _db.Couriers.ToListAsync();
+            return Ok(couriers);
+        }
+
+        [HttpPost("couriers")]
+        public async Task<IActionResult> CreateCourier(CreateCourierRequest request)
+        {
+            var courier = new Courier
+            {
+                Name = request.Name,
+                Surname = request.Surname,
+                Sex = request.Sex,
+                DateOfBirth = request.DateOfBirth,
+                Phone = request.Phone,
+                ActiveVehicleId = request.ActiveVehicleId,
+                IsActive = false
+            };
+
+            _db.Couriers.Add(courier);
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Courier {CourierId} created ({Name} {Surname})", courier.Id, courier.Name, courier.Surname);
+
+            return StatusCode(201, courier);
+        }
+
         [HttpPost("packages")]
         public async Task<IActionResult> CreatePackage(CreatePackageRequest request)
         {
