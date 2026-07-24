@@ -62,6 +62,7 @@ try
         var requiresAdmin =
             path == "/api/couriers" ||
             (path == "/api/packages" && (method == "GET" || method == "POST")) ||
+            (path.StartsWith("/api/packages/") && !path.StartsWith("/api/packages/mypackages") && !path.StartsWith("/api/packages/syncactions")) ||
             (path == "/api/locations" && method == "POST") ||
             (path.StartsWith("/api/locations/") && (method == "PUT" || method == "DELETE"));
 

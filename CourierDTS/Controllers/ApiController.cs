@@ -178,6 +178,8 @@ namespace CourierDTS.Controllers
             });
         }
 
+        // Paket burada kuryeye atanmadan, havuza (Pending, AssignedCourierId: null)
+        // düşecek şekilde oluşturuluyor - atama ayrı bir işlem.
         [HttpPost("packages")]
         public async Task<IActionResult> CreatePackage(CreatePackageRequest request)
         {
@@ -188,25 +190,86 @@ namespace CourierDTS.Controllers
                 Priority = request.Priority,
                 PickupLocId = request.PickupLocationId,
                 DropoffLocId = request.DropoffLocationId,
-                AssignedCourierId = request.AssignedCourierId,
                 Status = PackageStatus.Pending
             };
 
             _db.Packages.Add(package);
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("Package {PackageId} created (assigned courier: {CourierId})", package.Id, package.AssignedCourierId);
+            _logger.LogInformation("Package {PackageId} created (havuzda, atanmamış)", package.Id);
 
             return StatusCode(201, package);
         }
 
         // Admin görünümü: tek bir kuryeyle sınırlı değil, tüm paketleri gösterir -
         // Delivered/Cancelled dahil, kuryenin aktif görev listesinden (mypackages) farklı.
+        // AssignedCourierId: null olanlar "havuzdaki" paketleri temsil ediyor.
         [HttpGet("packages")]
         public async Task<IActionResult> GetAllPackages()
         {
             var packages = await _db.Packages.ToListAsync();
             return Ok(packages);
+        }
+
+        [HttpPut("packages/{id}")]
+        public async Task<IActionResult> UpdatePackage(int id, UpdatePackageRequest request)
+        {
+            var package = await _db.Packages.FindAsync(id);
+            if (package == null)
+                return NotFound();
+
+            package.Barcode = request.Barcode;
+            package.Description = request.Description;
+            package.Priority = request.Priority;
+            package.PickupLocId = request.PickupLocationId;
+            package.DropoffLocId = request.DropoffLocationId;
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Package {PackageId} updated", package.Id);
+
+            return Ok(package);
+        }
+
+        // Paketi bir kuryeye atar ya da (CourierId: null gönderilirse) havuza geri döndürür.
+        [HttpPut("packages/{id}/assign")]
+        public async Task<IActionResult> AssignCourier(int id, AssignCourierRequest request)
+        {
+            var package = await _db.Packages.FindAsync(id);
+            if (package == null)
+                return NotFound();
+
+            package.AssignedCourierId = request.CourierId;
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Package {PackageId} assigned to courier {CourierId}", package.Id, request.CourierId);
+
+            return Ok(package);
+        }
+
+        [HttpDelete("packages/{id}")]
+        public async Task<IActionResult> DeletePackage(int id)
+        {
+            var package = await _db.Packages.FindAsync(id);
+            if (package == null)
+                return NotFound();
+
+            try
+            {
+                _db.Packages.Remove(package);
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // PackageHistories -> Package FK'si Restrict, yani geçmişi olan bir
+                // paket silinemiyor (chain-of-custody). Kullanıcıya 500 yerine net bir cevap.
+                return BadRequest("Bu paketin geçmiş kaydı olduğu için silinemiyor.");
+            }
+
+            _logger.LogInformation("Package {PackageId} deleted", id);
+
+            return NoContent();
         }
 
         [HttpGet("packages/mypackages")]
