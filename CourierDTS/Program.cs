@@ -61,10 +61,13 @@ try
         // konum ekleme/güncelleme/silme (okuma - GET /api/locations - herkese açık kalıyor).
         var requiresAdmin =
             path == "/api/couriers" ||
+            path.StartsWith("/api/couriers/") ||
             (path == "/api/packages" && (method == "GET" || method == "POST")) ||
             (path.StartsWith("/api/packages/") && !path.StartsWith("/api/packages/mypackages") && !path.StartsWith("/api/packages/syncactions")) ||
             (path == "/api/locations" && method == "POST") ||
-            (path.StartsWith("/api/locations/") && (method == "PUT" || method == "DELETE"));
+            (path.StartsWith("/api/locations/") && (method == "PUT" || method == "DELETE")) ||
+            path == "/api/telemetry" ||
+            path == "/api/packagehistories";
 
         // Kurye mobil uygulamasına/simulator-bot'a özel.
         var requiresCourier =

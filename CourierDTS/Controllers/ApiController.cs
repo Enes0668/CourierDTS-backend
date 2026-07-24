@@ -178,6 +178,60 @@ namespace CourierDTS.Controllers
             });
         }
 
+        [HttpPut("couriers/{id}")]
+        public async Task<IActionResult> UpdateCourier(int id, UpdateCourierRequest request)
+        {
+            var courier = await _db.Couriers.FindAsync(id);
+            if (courier == null)
+                return NotFound();
+
+            courier.Name = request.Name;
+            courier.Surname = request.Surname;
+            courier.Sex = request.Sex;
+            courier.DateOfBirth = request.DateOfBirth;
+            courier.Phone = request.Phone;
+            courier.ActiveVehicleId = request.ActiveVehicleId;
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Courier {CourierId} updated", courier.Id);
+
+            return Ok(new
+            {
+                courier.Id,
+                courier.Name,
+                courier.Surname,
+                courier.Sex,
+                courier.DateOfBirth,
+                courier.Phone,
+                courier.IsActive,
+                courier.ActiveVehicleId
+            });
+        }
+
+        [HttpDelete("couriers/{id}")]
+        public async Task<IActionResult> DeleteCourier(int id)
+        {
+            var courier = await _db.Couriers.FindAsync(id);
+            if (courier == null)
+                return NotFound();
+
+            try
+            {
+                _db.Couriers.Remove(courier);
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // İlişkili kayıtları varsa (paket, sefer geçmişi vb.) silme reddedilir - 500 yerine net cevap.
+                return BadRequest("Bu kuryenin ilişkili kayıtları (paket/sefer) olduğu için silinemiyor.");
+            }
+
+            _logger.LogInformation("Courier {CourierId} deleted", id);
+
+            return NoContent();
+        }
+
         // Paket burada kuryeye atanmadan, havuza (Pending, AssignedCourierId: null)
         // düşecek şekilde oluşturuluyor - atama ayrı bir işlem.
         [HttpPost("packages")]
@@ -284,6 +338,15 @@ namespace CourierDTS.Controllers
             return Ok(packages);
         }
 
+        // Admin görünümü: chain-of-custody geçmişi - hangi paket, ne zaman,
+        // hangi eylemle güncellendi (asla silinmeyen kayıt).
+        [HttpGet("packagehistories")]
+        public async Task<IActionResult> GetPackageHistories()
+        {
+            var histories = await _db.PackageHistories.ToListAsync();
+            return Ok(histories);
+        }
+
         [HttpPost("packages/syncactions")]
         public async Task<IActionResult> SyncActions(SyncActionsRequest request)
         {
@@ -348,6 +411,19 @@ namespace CourierDTS.Controllers
             _logger.LogInformation("Journey {JourneyId} started for courier {CourierId}", journey.Id, journey.CourierId);
 
             return Ok(new { journeyId = journey.Id });
+        }
+
+        // Admin görünümü: bir seferin GPS geçmişini, zaman sırasına göre döner
+        // (haritada rota çizmek için).
+        [HttpGet("telemetry")]
+        public async Task<IActionResult> GetTelemetry([FromQuery] int journeyId)
+        {
+            var points = await _db.TelemetryLogs
+                .Where(t => t.JourneyId == journeyId)
+                .OrderBy(t => t.Timestamp)
+                .ToListAsync();
+
+            return Ok(points);
         }
 
         [HttpPost("telemetry/batch")]
