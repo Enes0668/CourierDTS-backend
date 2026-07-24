@@ -52,12 +52,22 @@ try
     // devre dışı bırakıldı, onun yerine ilkel bir oturum tokeni kontrolü var.
     // TODO: Baş mühendis Azure AD'yi kurunca bu middleware kaldırılıp
     // ApiController'daki [Authorize] satırı geri açılmalı.
+    //
+    // Sadece ADMIN paneline özel endpoint'ler token istiyor (kurye yönetimi,
+    // paket oluşturma/listeleme). Kurye mobil uygulaması ve simulator-bot'un
+    // henüz kendi bir girişi/şifresi yok - bu yüzden journeys/start,
+    // syncactions, telemetry/batch, mypackages şimdilik açık bırakıldı.
+    // Kurye/bot tarafı için ayrı bir kimlik doğrulama gerekiyorsa, bu ayrıca ele alınmalı.
     app.Use(async (context, next) =>
     {
-        var path = context.Request.Path;
+        var path = context.Request.Path.Value ?? string.Empty;
+        var method = context.Request.Method;
 
-        // Giriş endpoint'i istisna - token almadan önce buraya erişebilmek gerekiyor.
-        if (path.StartsWithSegments("/api") && !path.StartsWithSegments("/api/admin/login"))
+        var isAdminOnlyEndpoint =
+            path == "/api/couriers" ||
+            (path == "/api/packages" && (method == "GET" || method == "POST"));
+
+        if (isAdminOnlyEndpoint)
         {
             var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
             var token = authHeader != null && authHeader.StartsWith("Bearer ")
