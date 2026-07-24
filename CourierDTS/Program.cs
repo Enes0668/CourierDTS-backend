@@ -57,10 +57,13 @@ try
         var path = context.Request.Path.Value ?? string.Empty;
         var method = context.Request.Method;
 
-        // Admin paneline özel: kurye yönetimi, paket oluşturma/listeleme.
+        // Admin paneline özel: kurye yönetimi, paket oluşturma/listeleme,
+        // konum ekleme/güncelleme/silme (okuma - GET /api/locations - herkese açık kalıyor).
         var requiresAdmin =
             path == "/api/couriers" ||
-            (path == "/api/packages" && (method == "GET" || method == "POST"));
+            (path == "/api/packages" && (method == "GET" || method == "POST")) ||
+            (path == "/api/locations" && method == "POST") ||
+            (path.StartsWith("/api/locations/") && (method == "PUT" || method == "DELETE"));
 
         // Kurye mobil uygulamasına/simulator-bot'a özel.
         var requiresCourier =

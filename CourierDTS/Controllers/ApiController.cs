@@ -66,6 +66,61 @@ namespace CourierDTS.Controllers
             return Ok(locations);
         }
 
+        [HttpPost("locations")]
+        public async Task<IActionResult> CreateLocation(LocationRequest request)
+        {
+            var location = new Location
+            {
+                Name = request.Name,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                ContactPerson = request.ContactPerson,
+                ContactPhone = request.ContactPhone
+            };
+
+            _db.Locations.Add(location);
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Location {LocationId} created ({Name})", location.Id, location.Name);
+
+            return StatusCode(201, location);
+        }
+
+        [HttpPut("locations/{id}")]
+        public async Task<IActionResult> UpdateLocation(int id, LocationRequest request)
+        {
+            var location = await _db.Locations.FindAsync(id);
+            if (location == null)
+                return NotFound();
+
+            location.Name = request.Name;
+            location.Latitude = request.Latitude;
+            location.Longitude = request.Longitude;
+            location.ContactPerson = request.ContactPerson;
+            location.ContactPhone = request.ContactPhone;
+
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Location {LocationId} updated", location.Id);
+
+            return Ok(location);
+        }
+
+        [HttpDelete("locations/{id}")]
+        public async Task<IActionResult> DeleteLocation(int id)
+        {
+            var location = await _db.Locations.FindAsync(id);
+            if (location == null)
+                return NotFound();
+
+            _db.Locations.Remove(location);
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("Location {LocationId} deleted", id);
+
+            return NoContent();
+        }
+
         // Admin görünümü: sistemdeki tüm kuryeleri (boşta olanlar dahil) listeler.
         // PasswordHash dışarı hiç verilmiyor (hash olsa bile gereksiz sızıntı).
         [HttpGet("couriers")]
